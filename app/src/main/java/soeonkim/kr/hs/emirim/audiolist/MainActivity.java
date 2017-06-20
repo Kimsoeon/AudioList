@@ -1,6 +1,10 @@
 package soeonkim.kr.hs.emirim.audiolist;
 
+import android.icu.text.SimpleDateFormat;
 import android.media.MediaPlayer;
+import android.os.Build;
+import android.os.SystemClock;
+import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -9,19 +13,23 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
     ListView list;
     Button butPlay, butStop, butPause;
-    TextView textMusic;
-    ProgressBar progress;
+    TextView textMusic ,textTime;
+    SeekBar progress;
     String[] musics={"round_and_round", "suddenly", "the_physics_of_love"};
     int[] musicResIds={R.raw.round_and_round, R.raw.suddenly, R.raw.the_physics_of_love};
     int selectedMusiId;
     MediaPlayer mediaPlayer;
     boolean selectePauseButton;
+    int i;
 
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -31,7 +39,8 @@ public class MainActivity extends AppCompatActivity {
         butStop=(Button)findViewById(R.id.but_stop);
         butPause=(Button)findViewById(R.id.but_pause);
         textMusic=(TextView)findViewById(R.id.text_music);
-        progress=(ProgressBar)findViewById(R.id.progress_music);
+        textTime=(TextView)findViewById(R.id.text_time);
+        progress=(SeekBar)findViewById(R.id.progress_music);
         ArrayAdapter<String> adapter=new ArrayAdapter<String>(this, android.R.layout.simple_list_item_single_choice, musics);
         list.setAdapter(adapter);
         list.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
@@ -45,19 +54,44 @@ public class MainActivity extends AppCompatActivity {
                 selectePauseButton=false;
                 mediaPlayer.stop();
                 selectedMusiId=musicResIds[i];
-                progress.setVisibility(View.INVISIBLE);
+                MainActivity.this.i = i;
+
             }
         });
 
         butPlay.setOnClickListener(new View.OnClickListener() {
+            SimpleDateFormat timeFormat = new SimpleDateFormat("mm:ss");
             @Override
             public void onClick(View view) {
+                textMusic.setText(musics[i]);
                 if(selectePauseButton) {
                     selectePauseButton=false;
                 }else
                     mediaPlayer=MediaPlayer.create(MainActivity.this, selectedMusiId);
                 mediaPlayer.start();
-                progress.setVisibility(View.VISIBLE);
+                Thread musicThread = new Thread(){
+                    @Override
+                    public void run() {
+                        if(mediaPlayer==null) return; //이럴 일 없음
+                        progress.setMax(mediaPlayer.getDuration());//전체 음악 길이
+                        while (mediaPlayer.isPlaying()){
+                            progress.setProgress(mediaPlayer.getCurrentPosition());
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    textTime.setText("진행시간 : " + timeFormat.format(mediaPlayer.getCurrentPosition()));
+                                }
+                            });
+
+                            SystemClock.sleep(200);
+                        }
+
+                    }
+
+                };
+                musicThread.start();
+
+
             }
         });
 
@@ -66,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 selectePauseButton=false;
                 mediaPlayer.stop();
-                progress.setVisibility(View.INVISIBLE);
+
             }
         });
 
@@ -75,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 selectePauseButton=true;
                 mediaPlayer.pause();
-                progress.setVisibility(View.INVISIBLE);
+
             }
         });
     }
